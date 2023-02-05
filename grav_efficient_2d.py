@@ -1,5 +1,5 @@
 import pygame
-from numpy import concatenate, nan_to_num, where, zeros, sum, dot, ones, asarray, einsum, sqrt
+from numpy import concatenate, nan_to_num, sum, dot, ones, asarray, einsum, sqrt
 from numpy.random import randint
 #from numba import jit
 
@@ -10,7 +10,7 @@ RADIUS = 3
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
-WIDTH, HEIGHT = 900, 900
+WIDTH, HEIGHT = 1000, 1000
 DISH = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption('2D Gravity Simulator Efficient CPU')
 
@@ -22,8 +22,7 @@ def newtonian_gravitational_dynamics(ringo, color, counter, M, SPF=1/144, WIDTH=
     x = ringo[:, :2]    
     y = x.reshape(x.shape[0], 1, x.shape[1])
     
-    R = sqrt(einsum('ijk, ijk->ij', x-y, x-y))    
-    R_ = zeros((x.shape[0], x.shape[0], x.shape[1]))
+    R = sqrt(einsum('ijk, ijk->ij', x-y, x-y))
     M_ = dot(M,M.T)
     R_ = asarray([(x - x[i]) / (R[i].reshape(R.shape[0], 1) + EPSILON) for i in counter])
     
@@ -32,10 +31,10 @@ def newtonian_gravitational_dynamics(ringo, color, counter, M, SPF=1/144, WIDTH=
     x = x + (v * SPF)
     
     # Boundry Condition
-    v = v * concatenate((where(((x[:,0] > WIDTH) * v[:,0]) > 0, -1, 1).reshape(x.shape[0], 1),
-                        where(((x[:,1] > HEIGHT) * v[:,1]) > 0, -1, 1).reshape(x.shape[0], 1)),1) *\
-            concatenate((where(((x[:,0] < 0) * v[:,0]) < 0, -1, 1).reshape(x.shape[0], 1),
-                        where(((x[:,1] < 0) * v[:,1]) < 0, -1, 1).reshape(x.shape[0], 1)),1)
+    #v = v * concatenate((where(((x[:,0] > WIDTH) * v[:,0]) > 0, -1, 1).reshape(x.shape[0], 1),
+    #                    where(((x[:,1] > HEIGHT) * v[:,1]) > 0, -1, 1).reshape(x.shape[0], 1)),1) *\
+    #        concatenate((where(((x[:,0] < 0) * v[:,0]) < 0, -1, 1).reshape(x.shape[0], 1),
+    #                    where(((x[:,1] < 0) * v[:,1]) < 0, -1, 1).reshape(x.shape[0], 1)),1)
     
     # Outputs
     ringo = concatenate((x, v), axis=1)
@@ -52,17 +51,21 @@ def draw_window(arty, lighting):
 def main():
     clock = pygame.time.Clock()
     run = True
-    N = 2000
+    
+    N = 1000
     M = randint(3E7, 4E7, (N, 1)).astype('float64')
     M[0] = M[0]*1E10
-    width = randint(380, 381, (N, 1)).astype('float64')
+    
+    width = randint(160, 370, (N, 1)).astype('float64')
     width[0] = WIDTH/2
-    height = randint(260, 370, (N, 1)).astype('float64')
+    height = randint(160, 370, (N, 1)).astype('float64')
     height[0] = HEIGHT/2
+    
     vx = randint(240, 241, (N, 1)).astype('float64')
     vy = randint(3, 4, (N, 1)).astype('float64')*0.
     vx[0] = 0.
     vy[0] = 0.
+    
     ringo = concatenate((width, height, vx, vy), axis=1)
     color = randint(150, 255, (N, 3))
     time_step = 0
@@ -71,12 +74,15 @@ def main():
 
     while run:
         clock.tick(FPS)
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
+                
         arty, ringo = newtonian_gravitational_dynamics(ringo, color, counter, M=M, WIDTH=WIDTH, HEIGHT=HEIGHT, SPF=SPF)
         draw_window(arty, lighting)
         time_step += 1
+        
     pygame.quit()
 
 

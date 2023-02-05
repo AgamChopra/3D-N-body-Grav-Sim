@@ -1,14 +1,15 @@
 import pygame
 from torch import cat, nan_to_num, sum, ones, einsum, sqrt, randint, float64, int64, stack
 
-G = 6.67430E-11
-FPS = 240
-SPF = 1/FPS
+T = 1E1 # step constant.
+G = 1E-1 # 6.67430E-11
+FPS = 240 # frame per second
+SPF = T * 1/FPS # step per frame
 RADIUS = 3
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
-WIDTH, HEIGHT = 1000, 1000
+WIDTH, HEIGHT = 900, 900
 DISH = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption('2D Gravity Simulator Efficient CUDA')
 
@@ -16,7 +17,7 @@ EPSILON = 1E-1
 
 
 def newtonian_gravitational_dynamics(ringo, color, counter, M, SPF=1/144, WIDTH=600, HEIGHT=600):
-    x = ringo[:, :2]    
+    x = ringo[:, :3]    
     y = x.reshape(x.shape[0], 1, x.shape[1])
     
     R = sqrt(einsum('ijk, ijk->ij', x-y, x-y))  
@@ -24,24 +25,22 @@ def newtonian_gravitational_dynamics(ringo, color, counter, M, SPF=1/144, WIDTH=
     R_ = stack([(x - x[i]) / (R[i].reshape(R.shape[0], 1) + EPSILON) for i in counter],dim=0)
     
     a = sum(nan_to_num((1/(M * ones((R.shape[0], R.shape[0])).cuda())) * G * (M_/((R ** 2) + EPSILON))).reshape(R.shape[0], R.shape[0], 1) * R_, axis=1)
-    v = ringo[:, 2:] + (a * SPF)
+    v = ringo[:, 3:] + (a * SPF)
     x = x + (v * SPF)
     
-    # Boundry Condition
-    #v = v * cat((where(((x[:,0] > WIDTH) * v[:,0]) > 0, -1, 1).reshape(x.shape[0], 1),
-    #                    where(((x[:,1] > HEIGHT) * v[:,1]) > 0, -1, 1).reshape(x.shape[0], 1)),1) *\
-    #        cat((where(((x[:,0] < 0) * v[:,0]) < 0, -1, 1).reshape(x.shape[0], 1),
-    #                    where(((x[:,1] < 0) * v[:,1]) < 0, -1, 1).reshape(x.shape[0], 1)),1)
+    #!!!Logic for 3D world coordinates to 2D camera projection
+    x_ = x
     
     # Outputs
     ringo = cat((x, v), axis=1)
-    arty = cat((x.to(dtype = int64), color), axis=1)
+    arty = cat((x_.to(dtype = int64), color), axis=1)
     return arty, ringo
 
 
 def draw_window(arty, lighting):
     DISH.fill(lighting)
-    [pygame.draw.circle(DISH, [cell[2], cell[3], cell[4]], (cell[0], cell[1]), RADIUS) if cell[0]>0 and cell[0]<WIDTH and cell[1]>0 and cell[1]<HEIGHT else '' for cell in arty.detach().cpu().numpy()]
+    #!!! TO DO: ADD CONDITION FOR 3D RENDRING ON SCREEN
+    [pygame.draw.circle(DISH, [cell[3], cell[4], cell[5]], (cell[0], cell[1]), RADIUS)  if cell[0]>0 and cell[0]<WIDTH and cell[1]>0 and cell[1]<HEIGHT and cell[2]>0 and cell[2]<HEIGHT  else '' for cell in arty.detach().cpu().numpy()]
     pygame.display.update()
 
 
@@ -49,27 +48,24 @@ def main():
     clock = pygame.time.Clock()
     run = True
     
-    N = 1000
-    M = randint(int(3E7), int(4E7), (N, 1)).to(dtype = float64).cuda() 
-    M[0] = M[0]*1E10
+    N = 500    
+    M = randint(int(2), int(63), (N, 1)).to(dtype = float64).cuda() + (((2 + 63)/2) * 6)
     
-    width = randint(160, 370, (N, 1)).to(dtype = float64).cuda()
-    width[0] = WIDTH/2
-    height = randint(160, 370, (N, 1)).to(dtype = float64).cuda()
-    height[0] = HEIGHT/2
+    width = randint(int(WIDTH/2)-100, int(WIDTH/2)+100, (N, 1)).to(dtype = float64).cuda()
+    height = randint(int(HEIGHT/2)-100, int(HEIGHT/2)+100, (N, 1)).to(dtype = float64).cuda()
+    depth = randint(-100, 100, (N, 1)).to(dtype = float64).cuda()
     
-    vx = randint(240, 241, (N, 1)).to(dtype = float64).cuda()
-    vy = randint(3, 4, (N, 1)).to(dtype = float64).cuda() * 0.
-    vx[0] = 0.
-    vy[0] = 0.
+    vx = randint(-2, 2, (N, 1)).to(dtype = float64).cuda()
+    vy = randint(-2, 2, (N, 1)).to(dtype = float64).cuda()
+    vz = randint(-2, 2, (N, 1)).to(dtype = float64).cuda()  
     
-    ringo = cat((width, height, vx, vy), axis=1).cuda()
-    color = randint(int(150), int(255), (N, 3)).cuda()
+    ringo = cat((width, height, depth, vx, vy, vz), axis=1).cuda()
+    color = randint(int(150), int(255), (N, 3)).cuda()   
     
     time_step = 0
     lighting = BLACK
     counter = range(N)
-
+    
     while run:
         clock.tick(FPS)
         
