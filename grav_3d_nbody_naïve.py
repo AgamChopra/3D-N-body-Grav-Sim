@@ -306,6 +306,7 @@ while running:
                 
             if event.key == pygame.K_DOWN:
                 CAM[1] += 1*Q
+                
                                 
     screen.fill(bg_color)
     dt = 1/T

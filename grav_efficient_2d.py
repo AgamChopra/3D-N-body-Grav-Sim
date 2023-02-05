@@ -5,10 +5,10 @@ from numpy.random import randint
 
 pygame.init()
 
-G = 6.67430E-11
-FPS = 20
-SPF = 1E-1/FPS
-RADIUS = 3
+G = 1E-1
+FPS = 14
+SPF = 2.5E-1/FPS
+RADIUS = 1
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -64,9 +64,9 @@ def draw_window(arty, lighting):
 def main():
     run = True
     
-    N = 1000
-    M = randint(3E7, 4E7, (N, 1)).astype('float64')
-    M[0] = M[0]*1E10
+    N = 800
+    M = randint(40, 64, (N, 1)).astype('float64') * 7
+    M[0] = 4E7 * 7
     
     width = randint(160, 370, (N, 1)).astype('float64')
     width[0] = WIDTH/2

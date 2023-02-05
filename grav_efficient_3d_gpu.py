@@ -3,11 +3,11 @@ from torch import cat, nan_to_num, sum, ones, einsum, sqrt, randint, float64, in
 
 pygame.init()
 
-T = 1E1 # step constant.
+T = 2.5E-1 # step constant.
 G = 1E-1 # 6.67430E-11
-FPS = 20 # frame per second
+FPS = 14 # frame per second
 SPF = T/FPS # step per frame
-RADIUS = 3
+RADIUS = 1
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -60,8 +60,8 @@ def draw_window(arty, lighting):
 def main():
     run = True
     
-    N = 1200    
-    M = randint(int(2), int(63), (N, 1)).to(dtype = float64).cuda() + (((2 + 63)/2) * 6)
+    N = 1000    
+    M = randint(int(40), int(63), (N, 1)).to(dtype = float64).cuda() * 7
     
     width = randint(int(WIDTH/2)-100, int(WIDTH/2)+100, (N, 1)).to(dtype = float64).cuda()
     height = randint(int(HEIGHT/2)-100, int(HEIGHT/2)+100, (N, 1)).to(dtype = float64).cuda()
