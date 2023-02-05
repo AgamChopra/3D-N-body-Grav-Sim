@@ -5,7 +5,7 @@ from scipy.spatial.distance import cdist
 from numba import jit
 
 G = 6.67430E-11
-FPS = 144
+FPS = 240
 SPF = 1/FPS
 RADIUS = 3
 
@@ -15,7 +15,7 @@ WIDTH, HEIGHT = 900, 900
 DISH = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption('sim')
 
-EPSILON = 1E-20
+EPSILON = 1E-1
 
 
 @jit(nopython=False)
@@ -51,7 +51,7 @@ def draw_window(arty, lighting):
 def main():
     clock = pygame.time.Clock()
     run = True
-    N = 10
+    N = 1000
     M = randint(8E6, 3E7, (N, 1)).astype('float64')
     M[0] = M[0]*1E10
     width = randint(380, 390, (N, 1)).astype('float64')
