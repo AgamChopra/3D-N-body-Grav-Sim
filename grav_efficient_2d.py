@@ -1,8 +1,7 @@
 import pygame
-from numpy import concatenate, nan_to_num, where, zeros, sum, dot, ones, asarray
+from numpy import concatenate, nan_to_num, where, zeros, sum, dot, ones, asarray, einsum, sqrt
 from numpy.random import randint
-from scipy.spatial.distance import cdist
-from numba import jit
+#from numba import jit
 
 G = 6.67430E-11
 FPS = 240
@@ -13,15 +12,17 @@ BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 WIDTH, HEIGHT = 900, 900
 DISH = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption('sim')
+pygame.display.set_caption('2D Gravity Simulator Efficient CPU')
 
 EPSILON = 1E-1
 
 
-@jit(nopython=False)
+#@jit(nopython=False)
 def newtonian_gravitational_dynamics(ringo, color, counter, M, SPF=1/144, WIDTH=600, HEIGHT=600):
-    x = ringo[:, :2]
-    R = cdist(x, x, metric='euclidean')
+    x = ringo[:, :2]    
+    y = x.reshape(x.shape[0], 1, x.shape[1])
+    
+    R = sqrt(einsum('ijk, ijk->ij', x-y, x-y))    
     R_ = zeros((x.shape[0], x.shape[0], x.shape[1]))
     M_ = dot(M,M.T)
     R_ = asarray([(x - x[i]) / (R[i].reshape(R.shape[0], 1) + EPSILON) for i in counter])
@@ -51,15 +52,15 @@ def draw_window(arty, lighting):
 def main():
     clock = pygame.time.Clock()
     run = True
-    N = 1000
-    M = randint(8E6, 3E7, (N, 1)).astype('float64')
+    N = 2000
+    M = randint(3E7, 4E7, (N, 1)).astype('float64')
     M[0] = M[0]*1E10
-    width = randint(380, 390, (N, 1)).astype('float64')
+    width = randint(380, 381, (N, 1)).astype('float64')
     width[0] = WIDTH/2
     height = randint(260, 370, (N, 1)).astype('float64')
     height[0] = HEIGHT/2
-    vx = randint(240, 280, (N, 1)).astype('float64')
-    vy = randint(1, 5, (N, 1)).astype('float64')*0.
+    vx = randint(240, 241, (N, 1)).astype('float64')
+    vy = randint(3, 4, (N, 1)).astype('float64')*0.
     vx[0] = 0.
     vy[0] = 0.
     ringo = concatenate((width, height, vx, vy), axis=1)
@@ -76,8 +77,6 @@ def main():
         arty, ringo = newtonian_gravitational_dynamics(ringo, color, counter, M=M, WIDTH=WIDTH, HEIGHT=HEIGHT, SPF=SPF)
         draw_window(arty, lighting)
         time_step += 1
-        # print(ringo[0])
-        # print(arty[0])
     pygame.quit()
 
 
