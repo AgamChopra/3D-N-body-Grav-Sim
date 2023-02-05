@@ -7,12 +7,14 @@ from math import sin, cos, pi
 
 
 pygame.init()
+FONT = pygame.font.SysFont("Arial" , 18 , bold = True)
+clock = pygame.time.Clock()
 SCREEN_WIDTH = 1900
 SCREEN_HEIGHT = 1080
 screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 pygame.display.set_caption("3D Gravity Simulator")
 bg_color = (0, 0, 0)
-num_particles = 800
+num_particles = 200
 T = 1E2
 running = True
 CAM = [0, 0, 0]
@@ -33,7 +35,15 @@ TRAIL = TR_FACT * T * 1E-3
 L = 5
 EPSILON = 1E0
 SHOW_DM = False
-clock = pygame.time.Clock()
+FPS = 20
+
+
+def fps_counter():
+    flag = int(clock.get_fps())
+    c = "RED" if flag < 5 else "YELLOW" if flag < 10 else "GREEN"
+    fps = str(flag)
+    fps_t = FONT.render(fps , 1, pygame.Color(c))
+    screen.blit(fps_t,(0,0))
 
 
 def proj(obj_coord, cam_coord, fov):
@@ -193,6 +203,7 @@ for i in range(int(num_particles/2)):
 
 
 while running:
+    clock.tick(FPS)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -350,7 +361,8 @@ while running:
                         screen, (255 - 4*particle.m, 2*particle.m, 4*particle.m), (int(x), int(y)), int(scale))
                         
                 particle.clear()
-
+                
+    fps_counter()
     pygame.display.update()
     clock.tick(240)
 

@@ -1,10 +1,12 @@
 import pygame
 from torch import cat, nan_to_num, sum, ones, einsum, sqrt, randint, float64, int64, stack
 
+pygame.init()
+
 T = 1E1 # step constant.
 G = 1E-1 # 6.67430E-11
-FPS = 240 # frame per second
-SPF = T * 1/FPS # step per frame
+FPS = 20 # frame per second
+SPF = T/FPS # step per frame
 RADIUS = 3
 
 BLACK = (0, 0, 0)
@@ -12,6 +14,8 @@ WHITE = (255, 255, 255)
 WIDTH, HEIGHT = 900, 900
 DISH = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption('2D Gravity Simulator Efficient CUDA')
+FONT = pygame.font.SysFont("Arial" , 18 , bold = True)
+clock = pygame.time.Clock()
 
 EPSILON = 1E-1
 
@@ -37,18 +41,26 @@ def newtonian_gravitational_dynamics(ringo, color, counter, M, SPF=1/144, WIDTH=
     return arty, ringo
 
 
+def fps_counter():
+    flag = int(clock.get_fps())
+    c = "RED" if flag < 5 else "YELLOW" if flag < 10 else "GREEN"
+    fps = str(flag)
+    fps_t = FONT.render(fps , 1, pygame.Color(c))
+    DISH.blit(fps_t,(0,0))
+
+
 def draw_window(arty, lighting):
     DISH.fill(lighting)
     #!!! TO DO: ADD CONDITION FOR 3D RENDRING ON SCREEN
-    [pygame.draw.circle(DISH, [cell[3], cell[4], cell[5]], (cell[0], cell[1]), RADIUS)  if cell[0]>0 and cell[0]<WIDTH and cell[1]>0 and cell[1]<HEIGHT and cell[2]>0 and cell[2]<HEIGHT  else '' for cell in arty.detach().cpu().numpy()]
+    [pygame.draw.circle(DISH, [cell[3], cell[4], cell[5]], (cell[0], cell[1]), RADIUS)  if cell[0]>0 and cell[0]<WIDTH and cell[1]>0 and cell[1]<HEIGHT and cell[2]>-500  else '' for cell in arty.detach().cpu().numpy()]
+    fps_counter()
     pygame.display.update()
 
 
 def main():
-    clock = pygame.time.Clock()
     run = True
     
-    N = 500    
+    N = 1200    
     M = randint(int(2), int(63), (N, 1)).to(dtype = float64).cuda() + (((2 + 63)/2) * 6)
     
     width = randint(int(WIDTH/2)-100, int(WIDTH/2)+100, (N, 1)).to(dtype = float64).cuda()

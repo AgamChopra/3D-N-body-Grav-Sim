@@ -1,9 +1,11 @@
 import pygame
 from torch import cat, nan_to_num, sum, ones, einsum, sqrt, randint, float64, int64, stack
 
+pygame.init()
+
 G = 6.67430E-11
-FPS = 240
-SPF = 1/FPS
+FPS = 20
+SPF = 1E-1/FPS
 RADIUS = 3
 
 BLACK = (0, 0, 0)
@@ -11,6 +13,8 @@ WHITE = (255, 255, 255)
 WIDTH, HEIGHT = 1000, 1000
 DISH = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption('2D Gravity Simulator Efficient CUDA')
+FONT = pygame.font.SysFont("Arial" , 18 , bold = True)
+clock = pygame.time.Clock()
 
 EPSILON = 1E-1
 
@@ -39,14 +43,22 @@ def newtonian_gravitational_dynamics(ringo, color, counter, M, SPF=1/144, WIDTH=
     return arty, ringo
 
 
+def fps_counter():
+    flag = int(clock.get_fps())
+    c = "RED" if flag < 5 else "YELLOW" if flag < 10 else "GREEN"
+    fps = str(flag)
+    fps_t = FONT.render(fps , 1, pygame.Color(c))
+    DISH.blit(fps_t,(0,0))
+
+
 def draw_window(arty, lighting):
     DISH.fill(lighting)
     [pygame.draw.circle(DISH, [cell[2], cell[3], cell[4]], (cell[0], cell[1]), RADIUS) if cell[0]>0 and cell[0]<WIDTH and cell[1]>0 and cell[1]<HEIGHT else '' for cell in arty.detach().cpu().numpy()]
+    fps_counter()
     pygame.display.update()
 
 
 def main():
-    clock = pygame.time.Clock()
     run = True
     
     N = 1000
