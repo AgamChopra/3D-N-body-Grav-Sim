@@ -6,7 +6,7 @@
     <br><i>Fig. Sample Output of 3D N-Body simulation.</i><br>
     <img width="400" height="400" src="https://github.com/AgamChopra/3D-N-body-Gravatational-Simulation/blob/main/sample_screenshot_2d_efficient.jpg">
     <img width="400" height="400" src="https://github.com/AgamChopra/3D-N-body-Gravatational-Simulation/blob/main/sample_screenshot_2d_efficient_t.jpg">
-    <br><i>Fig. Sample Output of efficient 2D N-Body simulation at t=0 and t=t for 1000 particles.</i><br>
+    <br><i>Fig. Sample Output of efficient 2D N-Body simulation at t=t_i and t=t_i+n for 1000 particles.</i><br>
 </p>
 
 <p><a href="https://raw.githubusercontent.com/AgamChopra/3D-N-body-Gravatational-Simulation/main/LICENSE" target="blank">[The MIT License]</a></p>
