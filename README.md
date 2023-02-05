@@ -1,5 +1,5 @@
 <h1>3D-N-body-Gravatational-Simulation</h1>
-<p>My code for various N-body gravatational simulations.</p>
+<p>My code for various N-body gravitational simulations.</p>
 
 <p align="center">
     <img width="600" height="400" src="https://github.com/AgamChopra/3D-N-body-Gravatational-Simulation/blob/main/sample_screenshot.jpg">
