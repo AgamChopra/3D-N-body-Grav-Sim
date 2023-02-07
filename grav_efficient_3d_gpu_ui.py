@@ -4,10 +4,10 @@ from math import sin, cos, pi
 
 pygame.init()
 
-T = 2.5E-2 # step constant.
+T = 1E-2 # step constant.
 G = 1E-1 # 6.67430E-11
-FPS = 14 # frame per second
-SPF = T/FPS # step per frame
+FPS = 2 # frame per second
+SPF = (1/3)*T/FPS # step per frame
 RADIUS = 500
 
 BLACK = (0, 0, 0)
@@ -181,8 +181,8 @@ def main():
     global CAM, HEIGHT, WIDTH
     run = True
     
-    N = 2000    
-    M = randint(int(40), int(63), (N, 1)).to(dtype = float64).cuda() * 7
+    N = 1500    
+    M = randint(int(10), int(30), (N, 1)).to(dtype = float64).cuda() * 7
     
     width = cat((randint(-30, -25, (int(N/2), 1)),randint(25, 30, (int(N/2), 1))),dim=0).to(dtype = float64).cuda()
     depth = cat((randint(-2, 2, (int(N/2), 1)),randint(-2, 2, (int(N/2), 1))),dim=0).to(dtype = float64).cuda()
@@ -190,13 +190,13 @@ def main():
     
     vx = randint(-2, 2, (N, 1)).to(dtype = float64).cuda()
     vz = randint(-2, 2, (N, 1)).to(dtype = float64).cuda()
-    vy = cat((randint(65, 78, (int(N/2), 1)),randint(-78, -65, (int(N/2), 1))),dim=0).to(dtype = float64).cuda() 
+    vy = cat((randint(40, 50, (int(N/2), 1)),randint(-50, -40, (int(N/2), 1))),dim=0).to(dtype = float64).cuda() 
     
-    color = (cat((255 * norm(norm(M)**(1/1.3)), 215 * norm(norm(M)**(1/1.2)), 225 * norm(norm(M)**(1/1.1))),dim=1)/1.1).to(dtype=int64).cpu()
+    color = (cat((255 * norm(norm(M)**(1/1.03)), 215 * norm(norm(M)**(1/1.02)), 225 * norm(norm(M)**(1/1.1))),dim=1)/1.01).to(dtype=int64).cpu()
     
     
     for i in randint(0, N, (int(N/20),)):
-        M[i] = 7 * 1E2 * randint(1, 100, ())
+        M[i] = 7 * 1E1 * randint(1, 100, ())
         color[i] *= 0
         color[i] += 255
     
@@ -215,8 +215,8 @@ def main():
     height[int(N/4)] = -70
     height[int(3*N/4)] = 70
     
-    vy[int(N/4)] = 25
-    vy[int(3*N/4)] = -25
+    vy[int(N/4)] = 5
+    vy[int(3*N/4)] = -5
     
     ringo = cat((width, height, depth, vx, vy, vz), axis=1).cuda()
     
