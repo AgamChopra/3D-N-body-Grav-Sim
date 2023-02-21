@@ -181,7 +181,7 @@ def main():
     global CAM, HEIGHT, WIDTH
     run = True
     
-    N = 5000    
+    N = 10000    
     M = randint(int(10), int(30), (N, 1)).to(dtype = float64).cuda() * 7
     
     width = cat((randint(-30, -25, (int(N/2), 1)),randint(25, 30, (int(N/2), 1))),dim=0).to(dtype = float64).cuda()
