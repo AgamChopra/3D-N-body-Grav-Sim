@@ -5,7 +5,7 @@ from time import time
 
 pygame.init()
 
-N = 600
+N = 550
 G = 1E-1  # 6.67430E-11
 DISPLAYINTERVAL = 2  # render the screen after every n engine steps
 SPF = 0.3E-2  # step per frame
@@ -16,7 +16,7 @@ WHITE = (255, 255, 255)
 WIDTH = 1900
 HEIGHT = 1080
 SCREEN = pygame.display.set_mode((0, 0))
-pygame.display.set_caption('2D Gravity Simulator Efficient CUDA')
+pygame.display.set_caption('2D Gravity Simulator Efficient cpu')
 FONT = pygame.font.SysFont("Arial", 18, bold=True)
 clock = pygame.time.Clock()
 
@@ -89,12 +89,12 @@ def fps_counter(tickrate):
 
 def draw_window(compute_matrix, color, lighting, tickrate):
     x_ = proj_3_to_2(
-        CAM, compute_matrix[:, :3], F, TRANS, ROT).cpu().to(dtype=int64)
+        CAM, compute_matrix[:, :3], F, TRANS, ROT).to(dtype=int64)
     display_matrix = cat((x_, color), axis=1)
     SCREEN.fill(lighting)
     _, idx = sort(display_matrix[:, 2], descending=True)
     [pygame.draw.circle(SCREEN, [cell[3], cell[4], cell[5]], (cell[0], cell[1]), get_scale(
-        RADIUS, cell[2])) if cell[2] > CAM[2] else '' for cell in display_matrix[idx].cpu().numpy()]
+        RADIUS, cell[2])) if cell[2] > CAM[2] else '' for cell in display_matrix[idx].numpy()]
     fps_counter(tickrate)
     pygame.display.update()
 
@@ -122,13 +122,13 @@ def get_rot_matx(psi, theta, phi):
 def proj_3_to_2(cam_coord, obj_coord, f, trans, rot_ang):
     r = get_rot_matx(rot_ang[0], rot_ang[1], rot_ang[2])
 
-    obj_1 = ones(obj_coord.shape[0], 1).to(dtype=float64).cuda()
+    obj_1 = ones(obj_coord.shape[0], 1).to(dtype=float64)
 
     X = cat((obj_coord, obj_1), dim=1).T
     K = tensor(((f, 0, cam_coord[0]), (0, f, cam_coord[1]), (0, 0, 1))).to(
-        dtype=float64).cuda()
+        dtype=float64)
     E = tensor(((r[0], r[1], r[2], trans[0]), (r[3], r[4], r[5], trans[1]),
-               (r[6], r[7], r[8], trans[2]))).to(dtype=float64).cuda()
+               (r[6], r[7], r[8], trans[2]))).to(dtype=float64)
 
     X_ = K @ E @ X
 
@@ -169,7 +169,7 @@ def newtonian_gravitational_dynamics(compute_matrix, counter, M, SPF=1/144, WIDT
     R_ = stack([(x - x[i]) / (R[i].reshape(R.shape[0], 1) + EPSILON)
                for i in counter], dim=0)
 
-    a = sum(nan_to_num((1/(M * ones((R.shape[0], R.shape[0])).cuda())) * G * (
+    a = sum(nan_to_num((1/(M * ones((R.shape[0], R.shape[0])))) * G * (
         M_/((R ** 2) + EPSILON))).reshape(R.shape[0], R.shape[0], 1) * R_, axis=1)
     v = compute_matrix[:, 3:] + (a * SPF)
     x = x + (v * SPF)
@@ -188,22 +188,22 @@ def main():
         global CAM, HEIGHT, WIDTH
         run = True
         
-        M = randint(int(10), int(30), (N, 1)).to(dtype=float64).cuda() * 7
+        M = randint(int(10), int(30), (N, 1)).to(dtype=float64) * 7
 
         width = cat((randint(-30, -25, (int(N/2), 1)), randint(25,
-                    30, (int(N/2), 1))), dim=0).to(dtype=float64).cuda()
+                    30, (int(N/2), 1))), dim=0).to(dtype=float64)
         depth = cat((randint(-2, 2, (int(N/2), 1)), randint(-2, 2,
-                    (int(N/2), 1))), dim=0).to(dtype=float64).cuda()
+                    (int(N/2), 1))), dim=0).to(dtype=float64)
         height = cat((randint(-100, -95, (int(N/2), 1)), randint(95,
-                     100, (int(N/2), 1))), dim=0).to(dtype=float64).cuda()
+                     100, (int(N/2), 1))), dim=0).to(dtype=float64)
 
-        vx = randint(-2, 2, (N, 1)).to(dtype=float64).cuda()
-        vz = randint(-2, 2, (N, 1)).to(dtype=float64).cuda()
+        vx = randint(-2, 2, (N, 1)).to(dtype=float64)
+        vz = randint(-2, 2, (N, 1)).to(dtype=float64)
         vy = cat((randint(40, 50, (int(N/2), 1)), randint(-50, -40,
-                 (int(N/2), 1))), dim=0).to(dtype=float64).cuda()
+                 (int(N/2), 1))), dim=0).to(dtype=float64)
 
         color = cat((clip(100 + 1.034 ** M, 0, 200), clip(-150 + 1.037 ** M, 0, 175),
-                    clip(-50 + 1.03772 ** M, 0, 225)), dim=1).to(dtype=int64).cpu()
+                    clip(-50 + 1.03772 ** M, 0, 225)), dim=1).to(dtype=int64)
 
         for i in randint(0, N, (int(N/20),)):
             M[i] = 7 * 1E1 * randint(1, 100, ())
@@ -228,7 +228,7 @@ def main():
         vy[int(N/4)] = 5
         vy[int(3*N/4)] = -5
 
-        compute_matrix = cat((width, height, depth, vx, vy, vz), axis=1).cuda()
+        compute_matrix = cat((width, height, depth, vx, vy, vz), axis=1)
 
         time_step = 0
         lighting = BLACK

@@ -1,68 +1,68 @@
 import pygame
-from torch import cat, nan_to_num, sum, ones, einsum, sqrt, randint, float64, int64, stack, tensor, sort
+from torch import cat, nan_to_num, sum, ones, einsum, sqrt, randint, float64, int64, stack, tensor, sort, clip
 from math import sin, cos, pi
 
 pygame.init()
 
-T = 2.5E-1 # step constant.
+T = 1E-1 # step constant.
 G = 1E-1 # 6.67430E-11
-FPS = 14 # frame per second
+FPS = 60 # frame per second
 SPF = T/FPS # step per frame
-RADIUS = 500
+RADIUS = 1E2
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 WIDTH = 1900
 HEIGHT = 1080
-SCREEN = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+SCREEN = pygame.display.set_mode((0, 0))
 pygame.display.set_caption('2D Gravity Simulator Efficient CUDA')
 FONT = pygame.font.SysFont("Arial" , 18 , bold = True)
 clock = pygame.time.Clock()
 
 EPSILON = 1E-1
 
-CAM, F, TRANS, ROT = [int(WIDTH/2),int(HEIGHT/2),0], 1000, [0,0,100], [0.,0.,0.]
+CAM, F, TRANS, ROT = [int(WIDTH/2),int(HEIGHT/2),0], 1000, [0,0,250], [0.,0.,0.]
 
 
 def event_handler(event):
     global TRANS, ROT, CAM
     if event.type == pygame.KEYDOWN:
         if event.key == pygame.K_w:
-            TRANS[2] -= 10
+            TRANS[2] -= 5
         if event.key == pygame.K_s:
-            TRANS[2] += 10
+            TRANS[2] += 5
         if event.key == pygame.K_a:
-            TRANS[0] += 10
+            TRANS[0] += 5
         if event.key == pygame.K_d:
-            TRANS[0] -= 10
+            TRANS[0] -= 5
         if event.key == pygame.K_q:
-            TRANS[1] -= 10
+            TRANS[1] -= 5
         if event.key == pygame.K_e:
-            TRANS[1] += 10
+            TRANS[1] += 5
 
         if event.key == pygame.K_k:
-            ROT[0] -= pi/29
+            ROT[0] -= pi*1E-1
         if event.key == pygame.K_i:
-            ROT[0] += pi/29
+            ROT[0] += pi*1E-1
         if event.key == pygame.K_l:
-            ROT[1] += pi/29
+            ROT[1] += pi*1E-1
         if event.key == pygame.K_j:
-            ROT[1] -= pi/29
+            ROT[1] -= pi*1E-1
         if event.key == pygame.K_u:
-            ROT[2] -= pi/29
+            ROT[2] -= pi*1E-1
         if event.key == pygame.K_o:
-            ROT[2] += pi/29
+            ROT[2] += pi*1E-1
 
         if event.key == pygame.K_b:
             CAM, TRANS, ROT = [int(WIDTH/2),int(HEIGHT/2),0], [0,0,100], [0,0,0]
 
 
 def get_scale(R,Z):
-    scale = R / ((Z - CAM[2])**2)
+    scale = R / ((Z - CAM[2])**1.25)
     if scale < 1:
         scale = 1
-    if scale > 100:
-        scale = 100
+    if scale > 500:
+        scale = 500
     return scale
 
 
@@ -144,19 +144,38 @@ def main():
     global CAM, HEIGHT, WIDTH
     run = True
     
-    N = 2000    
-    M = randint(int(40), int(63), (N, 1)).to(dtype = float64).cuda() * 7
+    N = 400    
+    M = randint(int(40), int(60), (N, 1)).to(dtype = float64).cuda() * 7
     
-    width = cat((randint(-50, -30, (int(N/2), 1)),randint(30, 50, (int(N/2), 1))),dim=0).to(dtype = float64).cuda()
-    depth = cat((randint(-1, 1, (int(N/2), 1)),randint(-1, 1, (int(N/2), 1))),dim=0).to(dtype = float64).cuda()
-    height = cat((randint(10, 30, (int(N/2), 1)),randint(10, 30, (int(N/2), 1))),dim=0).to(dtype = float64).cuda()
+    width = cat((randint(-30, -25, (int(N/2), 1)),randint(25, 30, (int(N/2), 1))),dim=0).to(dtype = float64).cuda()
+    depth = cat((randint(-2, 2, (int(N/2), 1)),randint(-2, 2, (int(N/2), 1))),dim=0).to(dtype = float64).cuda()
+    height = cat((randint(-100, -95, (int(N/2), 1)),randint(95, 100, (int(N/2), 1))),dim=0).to(dtype = float64).cuda()
     
     vx = randint(-2, 2, (N, 1)).to(dtype = float64).cuda()
     vz = randint(-2, 2, (N, 1)).to(dtype = float64).cuda()
-    vy = cat((randint(7, 8, (int(N/2), 1)),randint(-8, -7, (int(N/2), 1))),dim=0).to(dtype = float64).cuda() 
+    vy = cat((randint(57, 68, (int(N/2), 1)),randint(-68, -57, (int(N/2), 1))),dim=0).to(dtype = float64).cuda() 
+    
+    color = cat((clip(50 + 1.014 ** M, 100, 200), clip(-50 + 1.014 ** M, 0, 210), clip(-50 + 1.01372 ** M, 0, 255)),dim=1).to(dtype=int64).cpu()  
+    
+    M[int(N/4)] = 5E5
+    M[int(3*N/4)] = 5.2E5
+    
+    color[int(N/4)] *= 0
+    color[int(3*N/4)] *= 0
+    color[int(N/4), 1] += 230
+    color[int(3*N/4), 1] += 230
+    
+    width[int(N/4)] = -10
+    width[int(3*N/4)] = 10
+    depth[int(N/4)] = 0
+    depth[int(3*N/4)] = 0
+    height[int(N/4)] = -70
+    height[int(3*N/4)] = 70
+    
+    vy[int(N/4)] = 25
+    vy[int(3*N/4)] = -25
     
     ringo = cat((width, height, depth, vx, vy, vz), axis=1).cuda()
-    color = cat((190 * ((norm(1/M)/2) + (norm(M)/1.2)), 240 * (norm(M)/1.2), 255 * norm(norm(M)**(1/1.2))),dim=1).to(dtype=int64).cpu()  
     
     time_step = 0
     lighting = BLACK
