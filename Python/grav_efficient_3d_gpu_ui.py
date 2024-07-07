@@ -1,5 +1,5 @@
 import pygame
-from torch import cat, nan_to_num, sum, ones, einsum, sqrt, randint, float64, int64, stack, tensor, sort, clip, no_grad
+from torch import cat, nan_to_num, sum, ones, einsum, sqrt, randint, float32, float64, int64, stack, tensor, sort, clip, no_grad
 from math import sin, cos, pi
 from time import time
 
@@ -7,8 +7,8 @@ pygame.init()
 
 N = 600
 G = 1E-1  # 6.67430E-11
-DISPLAYINTERVAL = 2  # render the screen after every n engine steps
-SPF = 0.3E-2  # step per frame
+DISPLAYINTERVAL = 3  # render the screen after every n engine steps
+SPF = 0.6E-3  # step per frame
 RADIUS = 500
 
 BLACK = (0, 0, 0)
@@ -30,17 +30,17 @@ def event_handler(event):
     global TRANS, ROT, CAM, BH
     if event.type == pygame.KEYDOWN:
         if event.key == pygame.K_w:
-            TRANS[2] -= 10
+            TRANS[2] -= 100
         if event.key == pygame.K_s:
-            TRANS[2] += 10
+            TRANS[2] += 100
         if event.key == pygame.K_a:
-            TRANS[0] += 10
+            TRANS[0] += 100
         if event.key == pygame.K_d:
-            TRANS[0] -= 10
+            TRANS[0] -= 100
         if event.key == pygame.K_q:
-            TRANS[1] -= 10
+            TRANS[1] -= 100
         if event.key == pygame.K_e:
-            TRANS[1] += 10
+            TRANS[1] += 100
 
         if event.key == pygame.K_k:
             ROT[0] -= pi/29
@@ -70,8 +70,10 @@ def get_scale(R, Z):
     scale = R / ((Z - CAM[2])**2)
     if scale < 1:
         scale = 1
-    if scale > 100:
+    elif scale > 100:
         scale = 100
+    else:
+        scale=100
     return scale
 
 
@@ -85,6 +87,7 @@ def fps_counter(tickrate):
     fps = f'Engine tickrate: {int(tickrate)}'
     fps_t = FONT.render(fps, 1, pygame.Color(c))
     SCREEN.blit(fps_t, (0, 20))
+
 
 
 def draw_window(compute_matrix, color, lighting, tickrate):
@@ -140,13 +143,13 @@ def proj_3_to_2(cam_coord, obj_coord, f, trans, rot_ang):
 
 
 def decay(M1, M2, v, r):
-    return 1E-13 * v * ((M1 * M2) / r**2)
+    return 1E-18 * v * ((M1 * M2) / r**2)
 
 
 def check_merger(x, M, N, v):
     r_ = sum((x[int(3*N/4)] - x[int(N/4)]) ** 2)**(1/2)
 
-    if r_ <= 1E-1:
+    if r_ <= SPF * 1E3:
         M[int(N/4)] += M[int(3*N/4)]
         M[int(3*N/4)] = 0
         v[int(N/4)] *= 0
@@ -188,42 +191,42 @@ def main():
         global CAM, HEIGHT, WIDTH
         run = True
         
-        M = randint(int(10), int(30), (N, 1)).to(dtype=float64).cuda() * 7
+        M = randint(int(10), int(30), (N, 1)).to(dtype=float64).cuda() * 350
 
-        width = cat((randint(-30, -25, (int(N/2), 1)), randint(25,
-                    30, (int(N/2), 1))), dim=0).to(dtype=float64).cuda()
-        depth = cat((randint(-2, 2, (int(N/2), 1)), randint(-2, 2,
+        width = cat((randint(-300, -250, (int(N/2), 1)), randint(250,
+                    300, (int(N/2), 1))), dim=0).to(dtype=float64).cuda()
+        depth = cat((randint(-20, 20, (int(N/2), 1)), randint(-20, 20,
                     (int(N/2), 1))), dim=0).to(dtype=float64).cuda()
-        height = cat((randint(-100, -95, (int(N/2), 1)), randint(95,
-                     100, (int(N/2), 1))), dim=0).to(dtype=float64).cuda()
+        height = cat((randint(-500, -450, (int(N/2), 1)), randint(450,
+                     500, (int(N/2), 1))), dim=0).to(dtype=float64).cuda()
 
         vx = randint(-2, 2, (N, 1)).to(dtype=float64).cuda()
         vz = randint(-2, 2, (N, 1)).to(dtype=float64).cuda()
-        vy = cat((randint(40, 50, (int(N/2), 1)), randint(-50, -40,
+        vy = cat((randint(100, 120, (int(N/2), 1)), randint(-120, -100,
                  (int(N/2), 1))), dim=0).to(dtype=float64).cuda()
 
-        color = cat((clip(100 + 1.034 ** M, 0, 200), clip(-150 + 1.037 ** M, 0, 175),
-                    clip(-50 + 1.03772 ** M, 0, 225)), dim=1).to(dtype=int64).cpu()
+        color = cat((clip(100 + 1.00074 ** M, 0, 200), clip(-150 + 1.00077 ** M, 0, 175),
+                    clip(-50 + 1.0007772 ** M, 0, 225)), dim=1).to(dtype=int64).cpu()
 
         for i in randint(0, N, (int(N/20),)):
             M[i] = 7 * 1E1 * randint(1, 100, ())
             color[i] *= 0
             color[i] += 255
 
-        M[int(N/4)] = 8E4*10
-        M[int(3*N/4)] = 7.7E4*10
+        M[int(N/4)] = 8E5*40
+        M[int(3*N/4)] = 7.7E5*40
 
         color[int(N/4)] *= 0
         color[int(3*N/4)] *= 0
-        color[int(N/4)] += 255
-        color[int(3*N/4)] += 255
+        color[int(N/4),1] += 255
+        color[int(3*N/4),1] += 255
 
-        width[int(N/4)] = -10
-        width[int(3*N/4)] = 10
+        width[int(N/4)] = -100
+        width[int(3*N/4)] = 100
         depth[int(N/4)] = 0
         depth[int(3*N/4)] = 0
-        height[int(N/4)] = -70
-        height[int(3*N/4)] = 70
+        height[int(N/4)] = -350
+        height[int(3*N/4)] = 350
 
         vy[int(N/4)] = 5
         vy[int(3*N/4)] = -5

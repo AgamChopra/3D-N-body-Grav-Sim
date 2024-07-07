@@ -3,16 +3,23 @@ from torch import cat, nan_to_num, sum, ones, einsum, sqrt, randint
 from torch import float64, int64, stack, tensor, sort, clip, no_grad
 from math import sin, cos, pi
 from time import time
+import cpuinfo
 from psutil import cpu_percent
+import GPUtil
 
 pygame.init()
 
-N = 400
+cpu_info = cpuinfo.get_cpu_info()
+CPU = cpu_info.get('brand_raw', 'Unknown CPU')
+GPU = GPUtil.getGPUs()[0].name
+
+DEVICE = 'cuda'
+N = 1500
 G = 1E-1  # 6.67430E-11
-DISPLAYINTERVAL = 3  # render the screen after every n engine steps
-SPF = 0.3E-2  # step per frame
+DISPLAYINTERVAL = 1  # render the screen after every n engine steps
+SPF = 0.3E-3  # step per frame
 RADIUS = 500
-TRAIL = 5
+TRAIL = 1  # >=1
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -27,6 +34,13 @@ EPSILON = 1E0
 
 CAM, F, TRANS, ROT = [int(WIDTH/2), int(HEIGHT/2),
                       0], 1000, [0, 0, 200], [0., 0., 0.]
+
+
+def get_gpu_usage():
+    gpu = GPUtil.getGPUs()[0]
+    info = f"{gpu.load*100:.1f}%, {gpu.memoryUsed:.0f}/{
+        gpu.memoryTotal:.0f}MB, {gpu.temperature}°C"
+    return info, gpu.temperature
 
 
 def event_handler(event):
@@ -76,26 +90,33 @@ def get_scale(R, Z):
 
 
 def fps_counter(tickrate):
+    fps_t = FONT.render(f'Mode: {DEVICE}', 1, pygame.Color("BLUE"))
+    SCREEN.blit(fps_t, (int(WIDTH/2.2), 0))
+
     cpu_usage = cpu_percent()
     c = "RED" if cpu_usage > 60 else "YELLOW" if cpu_usage > 20 else "GREEN"
-    fps_t = FONT.render(f'cpu(Ryzen5 5500): {cpu_usage}%', 1, pygame.Color(c))
-    SCREEN.blit(fps_t, (int(WIDTH/2.2), 60))
+    fps_t = FONT.render(f'{CPU}: {cpu_usage}%', 1, pygame.Color(c))
+    SCREEN.blit(fps_t, (int(WIDTH/2.2), 20))
+
+    if GPU:
+        fps_t = FONT.render(f'{GPU}', 1, pygame.Color("BLUE"))
+        SCREEN.blit(fps_t, (int(WIDTH/2.2), 40))
 
     flag = int(clock.get_fps())
     c = "RED" if flag < 15 else "YELLOW" if flag < 30 else "GREEN"
     fps = f'Display FPS: {flag}'
     fps_t = FONT.render(fps, 1, pygame.Color(c))
-    SCREEN.blit(fps_t, (int(WIDTH/2.2), 80))
+    SCREEN.blit(fps_t, (int(WIDTH/2.2), 60))
 
     c = "RED" if tickrate < 30 else "YELLOW" if tickrate < 60 else "GREEN"
     fps = f'Engine tickrate: {int(tickrate)}'
     fps_t = FONT.render(fps, 1, pygame.Color(c))
-    SCREEN.blit(fps_t, (int(WIDTH/2.2), 100))
+    SCREEN.blit(fps_t, (int(WIDTH/2.2), 80))
 
 
 def draw_window(compute_matrix, color, lighting, tickrate):
     x_all = proj_3_to_2(
-        CAM, compute_matrix[:, :3], F, TRANS, ROT).to(dtype=int64)
+        CAM, compute_matrix[:, :3], F, TRANS, ROT).to(dtype=int64, device='cpu')
     x_ = x_all[-N:]
     x_trail = x_all.view((int(x_all.shape[0]/N)), N, 3).permute(1, 0, 2)
     display_matrix = cat((x_, color), axis=1)
@@ -123,7 +144,7 @@ class FixedQueueTensor:
     def __init__(self, max_size=TRAIL, shape=(N, 9)):
         self.max_size = max_size
         self.shape = shape
-        self.queue = ones((0, *shape))
+        self.queue = ones((0, *shape), device=DEVICE)
 
     def append(self, element):
         self.queue = cat((self.queue, element.unsqueeze(0)), dim=0)
@@ -177,13 +198,13 @@ def get_rot_matx(psi, theta, phi):
 def proj_3_to_2(cam_coord, obj_coord, f, trans, rot_ang):
     r = get_rot_matx(rot_ang[0], rot_ang[1], rot_ang[2])
 
-    obj_1 = ones(obj_coord.shape[0], 1).to(dtype=float64)
+    obj_1 = ones(obj_coord.shape[0], 1).to(dtype=float64, device=DEVICE)
 
     X = cat((obj_coord, obj_1), dim=1).T
     K = tensor(((f, 0, cam_coord[0]), (0, f, cam_coord[1]), (0, 0, 1))).to(
-        dtype=float64)
+        dtype=float64, device=DEVICE)
     E = tensor(((r[0], r[1], r[2], trans[0]), (r[3], r[4], r[5], trans[1]),
-               (r[6], r[7], r[8], trans[2]))).to(dtype=float64)
+               (r[6], r[7], r[8], trans[2]))).to(dtype=float64, device=DEVICE)
 
     X_ = K @ E @ X
 
@@ -204,7 +225,7 @@ def newtonian_gravitational_dynamics(compute_matrix, counter, M, color,
     R_ = stack([(x - x[i]) / (R[i].reshape(R.shape[0], 1) + EPSILON)
                for i in counter], dim=0)
 
-    a = sum(nan_to_num((1/(M * ones((R.shape[0], R.shape[0])))) * G * (
+    a = sum(nan_to_num((1/(M * ones((R.shape[0], R.shape[0]), device=DEVICE))) * G * (
         M_/((R ** 2) + EPSILON))).reshape(R.shape[0], R.shape[0], 1) * R_,
         axis=1)
     v = compute_matrix[:, 3:6] + (a * SPF)
@@ -224,24 +245,25 @@ def main():
         global CAM, HEIGHT, WIDTH
         run = True
 
-        M = randint(int(10), int(30), (N, 1)).to(dtype=float64) * 500
+        M = randint(int(10), int(30), (N, 1)).to(
+            dtype=float64, device=DEVICE) * 500
 
         width = cat((randint(-30, -25, (int(N/2), 1)), randint(25,
-                    30, (int(N/2), 1))), dim=0).to(dtype=float64)
+                    30, (int(N/2), 1))), dim=0).to(dtype=float64, device=DEVICE)
         depth = cat((randint(-2, 2, (int(N/2), 1)), randint(-2, 2,
-                    (int(N/2), 1))), dim=0).to(dtype=float64)
+                    (int(N/2), 1))), dim=0).to(dtype=float64, device=DEVICE)
         height = cat((randint(-100, -95, (int(N/2), 1)), randint(95,
-                     100, (int(N/2), 1))), dim=0).to(dtype=float64)
+                     100, (int(N/2), 1))), dim=0).to(dtype=float64, device=DEVICE)
 
-        vx = randint(-2, 2, (N, 1)).to(dtype=float64)
-        vz = randint(-2, 2, (N, 1)).to(dtype=float64)
+        vx = randint(-2, 2, (N, 1)).to(dtype=float64, device=DEVICE)
+        vz = randint(-2, 2, (N, 1)).to(dtype=float64, device=DEVICE)
         vy = cat((randint(40, 50, (int(N/2), 1)), randint(-50, -40,
-                 (int(N/2), 1))), dim=0).to(dtype=float64)
+                 (int(N/2), 1))), dim=0).to(dtype=float64, device=DEVICE)
 
         color = cat((clip(100 + 1.00034 ** M, 0, 200),
                      clip(-150 + 1.00037 ** M, 0, 175),
                      clip(-50 + 1.0003772 ** M, 0, 225)),
-                    dim=1).to(dtype=int64)
+                    dim=1).to(dtype=int64, device='cpu')
 
         for i in randint(0, N, (int(N/20),)):
             M[i] = 7 * 1E1 * randint(1, 100, ())
@@ -292,8 +314,8 @@ def main():
             if time_step % DISPLAYINTERVAL == 0:
 
                 # Camera
-                ROT[1] += pi * 3E-3
-                TRANS[2] -= 5E-4
+                ROT[1] += pi * 3E-2
+                TRANS[2] -= 1E-3
 
                 log.append(compute_matrix)
                 fps = 1 / (time() - start_time)
